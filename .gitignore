@@ -1,0 +1,5 @@
+# generated output
+AuditReport/
+audit_report_*.txt
+incident_*.txt
+*.zip
