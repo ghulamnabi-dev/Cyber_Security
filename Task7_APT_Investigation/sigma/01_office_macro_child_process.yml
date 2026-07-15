@@ -1,0 +1,44 @@
+title: Office Application Spawning Suspicious Child Process
+id: 8f2b1c4a-3d17-4e88-9a55-1c7b6e0d2f31
+status: experimental
+description: Detects a Microsoft Office application (Word/Excel/Outlook) spawning a
+  script or shell interpreter. This is how the spear-phishing attachment in this
+  incident started the infection chain.
+author: Ghulam Nabi
+date: 2026/07/09
+references:
+  - https://attack.mitre.org/techniques/T1566/001/
+  - https://attack.mitre.org/techniques/T1204/002/
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection:
+    ParentImage|endswith:
+      - '\WINWORD.EXE'
+      - '\EXCEL.EXE'
+      - '\POWERPNT.EXE'
+      - '\OUTLOOK.EXE'
+    Image|endswith:
+      - '\powershell.exe'
+      - '\pwsh.exe'
+      - '\cmd.exe'
+      - '\wscript.exe'
+      - '\cscript.exe'
+      - '\mshta.exe'
+      - '\rundll32.exe'
+      - '\regsvr32.exe'
+  condition: selection
+fields:
+  - ParentImage
+  - Image
+  - CommandLine
+  - User
+falsepositives:
+  - Some business macros legitimately call scripts. These should be added to an allow list after checking with the application owner.
+level: high
+tags:
+  - attack.initial_access
+  - attack.execution
+  - attack.t1566.001
+  - attack.t1204.002

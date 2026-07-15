@@ -1,0 +1,40 @@
+title: Volume Shadow Copy Deletion (Ransomware Preparation)
+id: 7a3c50de-9184-4b6f-92cc-0e5d1f47b2a9
+status: stable
+description: Detects deletion of Volume Shadow Copies, which ransomware does so that
+  the victim cannot restore their files. This happened just before the ransomware
+  was deployed in this incident.
+author: Ghulam Nabi
+date: 2026/07/09
+references:
+  - https://attack.mitre.org/techniques/T1490/
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_vssadmin:
+    Image|endswith: '\vssadmin.exe'
+    CommandLine|contains|all:
+      - 'delete'
+      - 'shadows'
+  selection_wmic:
+    Image|endswith: '\wmic.exe'
+    CommandLine|contains|all:
+      - 'shadowcopy'
+      - 'delete'
+  selection_bcdedit:
+    Image|endswith: '\bcdedit.exe'
+    CommandLine|contains:
+      - 'recoveryenabled no'
+      - 'ignoreallfailures'
+  condition: 1 of selection_*
+fields:
+  - CommandLine
+  - User
+  - ParentImage
+falsepositives:
+  - Backup software sometimes removes old shadow copies. This is rare and should still be checked.
+level: critical
+tags:
+  - attack.impact
+  - attack.t1490

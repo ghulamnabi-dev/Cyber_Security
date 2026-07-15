@@ -1,0 +1,20 @@
+type,indicator,context,mitre,confidence,detection_method
+ip,185.220.101.44,C2 server the loader beacons to every 60s,T1071.001,high,Firewall/proxy egress logs; block at perimeter
+ip,91.219.236.18,Sender infrastructure for the spear-phishing email,T1566.001,high,Email gateway sender IP logs
+ip,45.129.14.203,Cloud storage upload endpoint used for exfiltration,T1567.002,high,Proxy bytes_out per destination
+domain,update-svc-cdn[.]com,C2 domain hard-coded in the loader,T1071.001,high,DNS query logs; secure DNS blocklist
+domain,microsoft365-secure-login[.]com,Fake M365 credential harvesting page,T1566.002,high,Proxy URL logs; email link rewriting
+domain,mega[.]nz,Cloud storage used to exfiltrate 4.2 GB,T1567.002,medium,Proxy logs; DLP egress rules
+url,hxxp://update-svc-cdn[.]com/x/loader.dat,Second-stage payload download URL,T1105,high,Proxy URL logs
+email,invoices@supplier-billing[.]net,Spoofed sender of the spear-phishing email,T1566.001,high,Email gateway sender logs
+filehash_sha256,7f4d9c1e2b8a6053f1c47ad9e0b386214fca7d95e83b0621c4d7ef58a390b6c2,Malicious macro attachment (Invoice_July.xlsm),T1204.002,high,YARA scan / EDR file hash
+filehash_sha256,a91c5f70d38e26b4c0197fa5e63d8b21740cfe9835ab2160d4e7c9f8503b1a6d,First-stage loader (svchost_update.dat),T1105,high,YARA rule APT_Loader_Stage1
+filehash_md5,d41d8cd98f00b204e9800998ecf8427e,Ransomware binary (lock.exe),T1486,high,YARA rule APT_Ransomware_Stage2
+filepath,C:\ProgramData\SysUpdate\svchost_update.dat,Loader staging location,T1105,high,EDR file creation events
+filepath,C:\Users\Public\rclone.exe,Exfiltration tool dropped by attacker,T1567.002,high,EDR process creation
+filepath,C:\HOW_TO_RESTORE_FILES.txt,Ransom note dropped on encrypted hosts,T1486,high,File creation monitoring
+file_extension,.lockbitx,Extension appended to encrypted files,T1486,high,Mass file-rename detection
+scheduled_task,\Microsoft\Windows\SysUpdate\UpdateCheck,Persistence scheduled task,T1053.005,high,Sigma rule 03; schtasks audit
+registry,HKCU\Software\Microsoft\Windows\CurrentVersion\Run\SysUpdate,Run-key persistence,T1547.001,medium,Sysmon Event ID 13
+user_account,svc_backup_adm,Rogue admin account created by attacker,T1136.002,high,Event ID 4720/4732
+mutex,Global\SysUpd_0x91af,Loader mutex to avoid double execution,T1106,medium,Memory forensics / EDR

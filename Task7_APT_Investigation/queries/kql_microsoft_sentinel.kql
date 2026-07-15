@@ -1,0 +1,92 @@
+// ===================================================================
+// KQL queries (Microsoft Sentinel / Defender Advanced Hunting)
+// Author: Ghulam Nabi | Case: IR-2026-07-APT | Date: 2026-07-09
+// These three queries find the three things the task asked for:
+// privilege escalation, lateral movement, and data exfiltration.
+// ===================================================================
+
+
+// -------------------------------------------------------------------
+// QUERY 1 - PRIVILEGE ESCALATION
+// What it does: finds a normal user suddenly running a process as
+// SYSTEM/admin, and finds LSASS being read (credential dumping).
+// Why: the attacker escalated first, then dumped passwords from memory.
+// -------------------------------------------------------------------
+let lookback = 30d;
+DeviceProcessEvents
+| where Timestamp > ago(lookback)
+| where InitiatingProcessAccountName !in ("system", "local service", "network service")
+| where AccountName in~ ("SYSTEM", "NT AUTHORITY\\SYSTEM")
+    or ProcessIntegrityLevel == "System"
+| where FileName in~ ("cmd.exe", "powershell.exe", "rundll32.exe", "procdump.exe", "psexec.exe")
+| project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine,
+          InitiatingProcessFileName, InitiatingProcessAccountName
+| sort by Timestamp asc
+
+// LSASS access (credential dumping - T1003.001)
+DeviceEvents
+| where Timestamp > ago(30d)
+| where ActionType == "OpenProcessApiCall"
+| where FileName =~ "lsass.exe"
+| where InitiatingProcessFileName !in~ ("MsMpEng.exe", "csrss.exe", "wmiprvse.exe")
+| project Timestamp, DeviceName, InitiatingProcessFileName,
+          InitiatingProcessCommandLine, InitiatingProcessAccountName
+| sort by Timestamp asc
+
+
+// -------------------------------------------------------------------
+// QUERY 2 - LATERAL MOVEMENT
+// What it does: finds one account logging into many different machines
+// in a short time (type 3 network logons), which is not normal for a
+// normal user. Also finds remote-execution tools like PsExec/WMI.
+// Why: the attacker used stolen hashes to jump across Active Directory.
+// -------------------------------------------------------------------
+DeviceLogonEvents
+| where Timestamp > ago(7d)
+| where LogonType in ("Network", "RemoteInteractive")
+| where ActionType == "LogonSuccess"
+| summarize
+      MachineCount = dcount(DeviceName),
+      Machines     = make_set(DeviceName, 50),
+      FirstSeen    = min(Timestamp),
+      LastSeen     = max(Timestamp)
+  by AccountName, RemoteIP
+| where MachineCount >= 5              // one account touching 5+ hosts = suspicious
+| sort by MachineCount desc
+
+// Remote execution tools used for lateral movement (T1021.002 / T1047)
+DeviceProcessEvents
+| where Timestamp > ago(7d)
+| where FileName in~ ("psexec.exe", "psexesvc.exe", "wmic.exe", "winrs.exe")
+    or ProcessCommandLine has_any ("\\\\ADMIN$", "\\\\C$", "process call create")
+| project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine
+| sort by Timestamp asc
+
+
+// -------------------------------------------------------------------
+// QUERY 3 - DATA EXFILTRATION
+// What it does: finds large amounts of data being uploaded to cloud
+// storage sites, and finds the rclone tool being used.
+// Why: the attacker copied the sensitive data out to cloud storage.
+// -------------------------------------------------------------------
+let cloud_domains = dynamic(["mega.nz", "mega.io", "dropbox.com", "anonfiles.com",
+                            "transfer.sh", "pcloud.com", "wetransfer.com"]);
+DeviceNetworkEvents
+| where Timestamp > ago(7d)
+| where RemoteUrl has_any (cloud_domains)
+| summarize
+      TotalBytesSent = sum(toint(column_ifexists("SentBytes", 0))),
+      Connections    = count(),
+      FirstSeen      = min(Timestamp),
+      LastSeen       = max(Timestamp)
+  by DeviceName, InitiatingProcessFileName, RemoteUrl, InitiatingProcessAccountName
+| where TotalBytesSent > 100000000      // more than ~100 MB uploaded
+| sort by TotalBytesSent desc
+
+// rclone / archive staging before exfiltration (T1560, T1567.002)
+DeviceProcessEvents
+| where Timestamp > ago(7d)
+| where FileName in~ ("rclone.exe", "7z.exe", "winrar.exe", "rar.exe")
+| where ProcessCommandLine has_any ("copy", "sync", "-hp", "a -r", "remote:")
+| project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine
+| sort by Timestamp asc

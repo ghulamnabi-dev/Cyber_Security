@@ -1,0 +1,36 @@
+title: Windows Event Log Cleared (Anti-Forensics)
+id: e5d81b67-40fa-4c93-b7a2-3f9c6e18d045
+status: stable
+description: Detects clearing of Windows event logs. The attacker did this at the end
+  of the incident to hide their tracks and slow down the investigation.
+author: Ghulam Nabi
+date: 2026/07/09
+references:
+  - https://attack.mitre.org/techniques/T1070/001/
+logsource:
+  product: windows
+  service: security
+detection:
+  selection_eventid:
+    EventID:
+      - 1102   # Security log cleared
+      - 104    # System/Application log cleared
+  selection_tool:
+    Image|endswith:
+      - '\wevtutil.exe'
+      - '\powershell.exe'
+    CommandLine|contains:
+      - 'cl '
+      - 'clear-log'
+      - 'Clear-EventLog'
+  condition: 1 of selection_*
+fields:
+  - EventID
+  - CommandLine
+  - User
+falsepositives:
+  - Almost none. Clearing logs is very rarely a normal admin action and should always be investigated.
+level: critical
+tags:
+  - attack.defense_evasion
+  - attack.t1070.001

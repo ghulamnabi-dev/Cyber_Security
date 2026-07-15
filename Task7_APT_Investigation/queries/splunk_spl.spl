@@ -1,0 +1,74 @@
+# ===================================================================
+# Splunk SPL queries - same three detections as the KQL file
+# Author: Ghulam Nabi | Case: IR-2026-07-APT | Date: 2026-07-09
+# ===================================================================
+
+
+# -------------------------------------------------------------------
+# QUERY 1 - PRIVILEGE ESCALATION (LSASS access / credential dumping)
+# Sysmon Event ID 10 = a process opened another process
+# -------------------------------------------------------------------
+index=windows sourcetype="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational"
+  EventCode=10 TargetImage="*\\lsass.exe"
+  GrantedAccess IN ("0x1010","0x1410","0x1438","0x143a","0x1fffff")
+  NOT SourceImage IN ("*\\MsMpEng.exe","*\\csrss.exe","*\\wmiprvse.exe")
+| table _time, ComputerName, SourceImage, TargetImage, GrantedAccess, User
+| sort _time
+
+
+# Privilege escalation - normal user process running as SYSTEM
+index=windows sourcetype="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational"
+  EventCode=1 (Image="*\\cmd.exe" OR Image="*\\powershell.exe" OR Image="*\\procdump.exe")
+  User="NT AUTHORITY\\SYSTEM"
+  NOT ParentImage IN ("*\\services.exe","*\\svchost.exe")
+| table _time, ComputerName, User, Image, CommandLine, ParentImage
+| sort _time
+
+
+# -------------------------------------------------------------------
+# QUERY 2 - LATERAL MOVEMENT
+# EventCode 4624 LogonType 3 = network logon. One account hitting many
+# hosts quickly is a strong sign of an attacker using stolen creds.
+# -------------------------------------------------------------------
+index=windows sourcetype=WinEventLog:Security EventCode=4624 Logon_Type=3
+| stats dc(ComputerName) AS host_count
+        values(ComputerName) AS hosts
+        min(_time) AS first_seen
+        max(_time) AS last_seen
+  BY Account_Name, Source_Network_Address
+| where host_count >= 5
+| convert ctime(first_seen) ctime(last_seen)
+| sort - host_count
+
+
+# Remote execution tooling (PsExec / WMI)
+index=windows sourcetype="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational"
+  EventCode=1 (Image="*\\psexec.exe" OR Image="*\\psexesvc.exe" OR Image="*\\wmic.exe")
+  OR CommandLine="*process call create*" OR CommandLine="*\\\\ADMIN$*"
+| table _time, ComputerName, User, Image, CommandLine
+| sort _time
+
+
+# -------------------------------------------------------------------
+# QUERY 3 - DATA EXFILTRATION
+# Large uploads to cloud storage from an internal host.
+# -------------------------------------------------------------------
+index=proxy OR index=firewall
+  (dest_domain IN ("mega.nz","mega.io","dropbox.com","anonfiles.com","transfer.sh","pcloud.com"))
+| stats sum(bytes_out) AS total_bytes_out
+        count AS connections
+        min(_time) AS first_seen
+        max(_time) AS last_seen
+  BY src_ip, user, dest_domain
+| where total_bytes_out > 100000000
+| eval total_MB = round(total_bytes_out/1024/1024, 2)
+| convert ctime(first_seen) ctime(last_seen)
+| table src_ip, user, dest_domain, total_MB, connections, first_seen, last_seen
+| sort - total_MB
+
+
+# rclone / archive staging before exfiltration
+index=windows sourcetype="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational"
+  EventCode=1 (Image="*\\rclone.exe" OR Image="*\\7z.exe" OR Image="*\\winrar.exe")
+| table _time, ComputerName, User, Image, CommandLine
+| sort _time
