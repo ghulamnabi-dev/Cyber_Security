@@ -44,5 +44,7 @@ Both cover privilege escalation, lateral movement and data exfiltration.
 persistence, rogue account) with the MITRE technique and how to detect each one.
 
 ## Note
-The IPs, domains and hashes are from this investigation scenario and are used as
-examples for the lab.
+This is a lab scenario from the internship, not a real incident. The IPs, domains and file
+hashes in it are example values for the lab. They are not indicators taken from real
+malware samples, so do not use them as threat intelligence. The ransomware binary is
+listed by file name only, because no hash was recorded for it.

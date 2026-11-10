@@ -9,7 +9,7 @@ url,hxxp://update-svc-cdn[.]com/x/loader.dat,Second-stage payload download URL,T
 email,invoices@supplier-billing[.]net,Spoofed sender of the spear-phishing email,T1566.001,high,Email gateway sender logs
 filehash_sha256,7f4d9c1e2b8a6053f1c47ad9e0b386214fca7d95e83b0621c4d7ef58a390b6c2,Malicious macro attachment (Invoice_July.xlsm),T1204.002,high,YARA scan / EDR file hash
 filehash_sha256,a91c5f70d38e26b4c0197fa5e63d8b21740cfe9835ab2160d4e7c9f8503b1a6d,First-stage loader (svchost_update.dat),T1105,high,YARA rule APT_Loader_Stage1
-filehash_md5,d41d8cd98f00b204e9800998ecf8427e,Ransomware binary (lock.exe),T1486,high,YARA rule APT_Ransomware_Stage2
+filename,lock.exe,Ransomware binary (no file hash was recorded for it),T1486,high,YARA rule APT_Ransomware_Stage2
 filepath,C:\ProgramData\SysUpdate\svchost_update.dat,Loader staging location,T1105,high,EDR file creation events
 filepath,C:\Users\Public\rclone.exe,Exfiltration tool dropped by attacker,T1567.002,high,EDR process creation
 filepath,C:\HOW_TO_RESTORE_FILES.txt,Ransom note dropped on encrypted hosts,T1486,high,File creation monitoring
