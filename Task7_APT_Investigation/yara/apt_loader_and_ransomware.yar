@@ -3,10 +3,11 @@
     Author: Ghulam Nabi
     Date:   2026-07-09
     Purpose:
-        This rule finds the loader and the ransomware stage used in this incident.
-        I wrote it by looking at the strings that were found inside the malicious
-        files during the investigation. It is a DETECTION rule only - it is used to
-        scan files and find the malware, it does not do anything harmful itself.
+        This rule looks for the loader and the ransomware stage described in the lab
+        scenario. I wrote it from the indicators given in that scenario. There were
+        no malware samples, so it has not been tested against real files.
+        It is a DETECTION rule only - it is used to scan files and find the
+        malware, it does not do anything harmful itself.
     Usage:
         yara -r apt_loader_and_ransomware.yar /path/to/scan
     MITRE: T1486 (Data Encrypted for Impact), T1055 (Process Injection), T1490
@@ -25,7 +26,7 @@ rule APT_Loader_Stage1
         mitre       = "T1204.002, T1105"
 
     strings:
-        // command-and-control host found in the sample
+        // command-and-control host given in the lab scenario
         $c2_1 = "185.220.101.44" ascii wide
         $c2_2 = "update-svc-cdn.com" ascii wide
 
